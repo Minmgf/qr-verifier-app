@@ -1,0 +1,8 @@
+#reader {
+  margin-top: 20px;
+  border: 2px dashed var(--ion-color-primary);
+  border-radius: 16px;
+  padding: 10px;
+  height: 300px; 
+   position: relative;
+}
