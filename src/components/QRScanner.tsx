@@ -1,46 +1,57 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 
 interface Props {
-    onScanSuccess: (decodedText: string) => void;
+  onScanSuccess: (decodedText: string) => void;
 }
 
 export const QRScanner: React.FC<Props> = ({ onScanSuccess }) => {
-    useEffect(() => {
-        const qrRegionId = "reader";
-        const html5QrCode = new Html5Qrcode(qrRegionId);
+  const qrRegionId = "reader";
+  const qrCodeRef = useRef<Html5Qrcode | null>(null);
 
-        // Esperar un poquito para asegurar que el DOM esté renderizado
-        setTimeout(() => {
-            Html5Qrcode.getCameras().then(devices => {
-                const backCamera = devices.find(d => d.label.toLowerCase().includes('back')) || devices[0];
+  useEffect(() => {
+    const element = document.getElementById(qrRegionId);
+    if (!element) {
+      console.error("❌ El contenedor del QR no está presente en el DOM");
+      return;
+    }
 
-                if (!backCamera) {
-                    console.error("No back camera found");
-                    return;
-                }
+    const html5QrCode = new Html5Qrcode(qrRegionId);
+    qrCodeRef.current = html5QrCode;
 
-                html5QrCode.start(
-                    backCamera.id,
-                    {
-                        fps: 10,
-                        qrbox: 250
-                    },
-                    onScanSuccess,
-                    error => {
-                        // omit log
-                    }
-                );
-            });
-        }, 300); // 👈 pequeño delay para asegurar que #reader esté presente
+    Html5Qrcode.getCameras()
+      .then(devices => {
+        const backCamera = devices.find(d => d.label.toLowerCase().includes('back')) || devices[0];
 
-        return () => {
-            html5QrCode.stop().then(() => {
-                html5QrCode.clear();
-            });
-        };
-    }, [onScanSuccess]);
+        if (!backCamera) {
+          console.error("❌ No se encontró cámara disponible");
+          return;
+        }
 
+        html5QrCode
+          .start(
+            backCamera.id,
+            { fps: 10, qrbox: 250 },
+            onScanSuccess,
+            () => {} // Errores de escaneo ignorados silenciosamente
+          )
+          .catch(err => {
+            console.error("❌ Error iniciando la cámara:", err);
+          });
+      })
+      .catch(err => {
+        console.error("❌ Error obteniendo cámaras:", err);
+      });
 
-    return <div id="reader" style={{ width: '100%' }} />;
+    return () => {
+      html5QrCode
+        .stop()
+        .then(() => html5QrCode.clear())
+        .catch(err => {
+          console.error("❌ Error deteniendo el escáner:", err);
+        });
+    };
+  }, [onScanSuccess]);
+
+  return <div id={qrRegionId} style={{ width: '100%', height: 'auto' }} />;
 };
